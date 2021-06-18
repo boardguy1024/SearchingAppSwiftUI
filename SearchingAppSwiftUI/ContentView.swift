@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct RSS: Decodable {
     let feed: Feed
@@ -13,13 +14,13 @@ struct RSS: Decodable {
 struct Feed: Decodable {
     let results: [Result]
 }
-struct Result: Decodable {
+struct Result: Decodable, Hashable {
     let copyright, name, artworkUrl100, releaseDate: String
 }
 
 class GridViewModel: ObservableObject {
-    
-    @Published var items = 0..<10
+        
+    @Published var results = [Result]()
     
     init() {
         fetch()
@@ -33,7 +34,9 @@ class GridViewModel: ObservableObject {
             
             do {
                 let rss = try JSONDecoder().decode(RSS.self, from: data)
-                print(rss)
+                DispatchQueue.main.async {
+                    self.results = rss.feed.results
+                }
             } catch {
                 print("Failed to decode: \(error)")
             }
@@ -49,27 +52,13 @@ struct ContentView: View {
         
         NavigationView {
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(minimum: 100, maximum: 200), spacing: 12),
-                                    GridItem(.flexible(minimum: 100, maximum: 200), spacing: 12),
-                                    GridItem(.flexible(minimum: 100, maximum: 200))],
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 100, maximum: 200), spacing: 12, alignment: .top),
+                                    GridItem(.flexible(minimum: 100, maximum: 200), spacing: 12, alignment: .top),
+                                    GridItem(.flexible(minimum: 100, maximum: 200), alignment: .top)],
                           spacing: 12,
                           content: {
-                            ForEach(vm.items, id: \.self) { num in
-                              
-                                VStack (alignment: .leading) {
-                                    Spacer()
-                                        .frame(width: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, height: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/)
-                                        .background(Color.blue)
-                                    
-                                    Text("App Title")
-                                        .font(.system(size: 10, weight: .semibold))
-                                    Text("Release Date")
-                                        .font(.system(size: 9, weight: .regular))
-                                    Text("Copyright")
-                                        .font(.system(size: 9, weight: .regular))
-                                }
-                                .padding()
-                                .background(Color.red)
+                            ForEach(vm.results, id: \.self) { result in
+                                AppInfo(app: result)
                             }
                           }).padding(.horizontal, 12)
             }.navigationTitle("Grid Search")
@@ -80,5 +69,30 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+    }
+}
+
+struct AppInfo: View {
+    
+    let app: Result
+    
+    var body: some View {
+        VStack (alignment: .leading, spacing: 4) {
+            KFImage(URL(string: app.artworkUrl100))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 110, height: 110, alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/)
+                .cornerRadius(16)
+            
+            Text(app.name)
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.top, 6)
+            
+            Text(app.releaseDate)
+                .font(.system(size: 9, weight: .regular))
+            Text(app.copyright)
+                .font(.system(size: 9, weight: .regular))
+        }
+        .padding(.horizontal)
     }
 }
